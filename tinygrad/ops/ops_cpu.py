@@ -208,19 +208,15 @@ class Conv2D(Function):
     # add path via np.einsum_path
     # path[0] is the algorithm to execute,
     # path[1] is the information of the calculated steps and time comsumption
-
+    # path = ['einsum_path', (0, 1)] # via grid search, precached here for speed, tho it's still very slow (40 sec)
     for k in range(oy*ox):
       Y, X = k//ox, k%ox
       iY,iX = Y*ys, X*xs
-      #path = np.einsum_path('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize='optimized')[0]
-      #print(path): (0,1)
       # add path via einsum
-      #gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize='greedy')
-
-      #gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize=['einsum_path', (0, 1)])
+      # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize=path)
 
       # it's right but very slow: 37 sec
-      #gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
+      # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
 
       # 31.5 sec
       for g in range(ctx.groups):
