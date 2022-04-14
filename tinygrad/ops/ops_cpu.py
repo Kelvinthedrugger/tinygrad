@@ -189,7 +189,8 @@ class Conv2D(Function):
       ret[:,g] += np.tensordot(tx[:,g], tw[g], ((1,4,5),(1,2,3)))
     return np.moveaxis(ret,4,2).reshape(bs, cout, oy, ox)
 
-  def backward(ctx, grad_output):
+  # add org condition here for easier modification
+  def backward(ctx, grad_output,org=True):
     bs,_,oy,ox = grad_output.shape
     tx, tw, x_shape = ctx.saved_tensors
     _,rcout,cin,H,W = tw.shape
@@ -205,21 +206,32 @@ class Conv2D(Function):
 
     # needs to be optimized
     gdx = np.zeros((bs,ctx.groups,cin,OY,OX), dtype=tx.dtype)
-    # add path via np.einsum_path
-    # path[0] is the algorithm to execute,
-    # path[1] is the information of the calculated steps and time comsumption
-    # path = ['einsum_path', (0, 1)] # via grid search, precached here for speed
-    for k in range(oy*ox):
-      Y, X = k//ox, k%ox
-      iY,iX = Y*ys, X*xs
-      # add path via einsum
-      # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize=path)
+    if org:
+      for k in range(oy*ox):
+        Y, X = k//ox, k%ox
+        iY,iX = Y*ys, X*xs
+        for g in range(ctx.groups):
+          tg = np.dot(ggg[:,g,:,Y,X].reshape(bs, -1), tw[g].reshape(rcout, -1))
+          gdx[:, g, :, iY:iY+H, iX:iX+W] += tg.reshape((bs, cin, H, W))
+    else:
 
-      # it's right but very slow: 37 sec
-      # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
 
-      for g in range(ctx.groups):
-        tg = np.dot(ggg[:,g,:,Y,X].reshape(bs, -1), tw[g].reshape(rcout, -1))
-        gdx[:, g, :, iY:iY+H, iX:iX+W] += tg.reshape((bs, cin, H, W))
+
+      pass
+      for k in range(oy*ox):
+        Y, X = k//ox, k%ox
+        iY,iX = Y*ys, X*xs
+        # add path via np.einsum_path
+        # path[0] is the algorithm to execute,
+        # path[1] is the information of the calculated steps and time comsumption
+        # path = ['einsum_path', (0, 1)] # via grid search, precached here for speed
+        # very slow, suspecting it's because the optimum path were different for each round,
+        # , which would be too expensive to re-calculate in every path
+        # , so, we can't really use the same path at round 1 every time
+        # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize=path)
+
+        # it passed the test, which didn't mean it' right
+        # it's slow tho: 37 sec
+        gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
 
     return gdx.reshape((bs, ctx.groups*cin, OY, OX)), gdw.reshape((ctx.groups*rcout, cin, H, W))
