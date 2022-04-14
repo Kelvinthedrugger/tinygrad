@@ -225,7 +225,7 @@ class Conv2D(Function):
           #   '     # inner product
           #   '     # reshape again
           # slow, at least now it's right
-          gdx[:, g, :, iY:iY+H, iX:iX+W] += np.einsum('ij,jk->ik',ggg[:,g,:,Y,X],tw[g].reshape((rcout,-1))).reshape((bs, cin, H, W))
+          gdx[:, g, :, iY:iY+H, iX:iX+W] += np.einsum('ij,jk->ik',ggg[:,g,:,Y,X],tw[g].reshape(rcout,-1)).reshape((bs, cin, H, W))
       pass
       for k in range(oy*ox):
         Y, X = k//ox, k%ox
