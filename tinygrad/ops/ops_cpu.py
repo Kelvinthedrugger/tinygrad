@@ -190,7 +190,7 @@ class Conv2D(Function):
     return np.moveaxis(ret,4,2).reshape(bs, cout, oy, ox)
 
   # add org condition here for easier modification
-  def backward(ctx, grad_output,org=True):
+  def backward(ctx, grad_output,org=False):
     bs,_,oy,ox = grad_output.shape
     tx, tw, x_shape = ctx.saved_tensors
     _,rcout,cin,H,W = tw.shape
@@ -214,9 +214,18 @@ class Conv2D(Function):
           tg = np.dot(ggg[:,g,:,Y,X].reshape(bs, -1), tw[g].reshape(rcout, -1))
           gdx[:, g, :, iY:iY+H, iX:iX+W] += tg.reshape((bs, cin, H, W))
     else:
-
-
-
+      # remember, it's gradient to pass "backward"ly, instead of the gradient of this conv layer
+      for k in range(oy*ox):
+        Y, X = k//ox, k%ox
+        iY,iX = Y*ys, X*xs
+        for g in range(ctx.groups):
+          # in einsum:
+          #   'ij, # do nothing
+          #   '     # reshape
+          #   '     # inner product
+          #   '     # reshape again
+          # slow, at least now it's right
+          gdx[:, g, :, iY:iY+H, iX:iX+W] += np.einsum('ij,jk->ik',ggg[:,g,:,Y,X],tw[g].reshape((rcout,-1))).reshape((bs, cin, H, W))
       pass
       for k in range(oy*ox):
         Y, X = k//ox, k%ox
@@ -230,8 +239,9 @@ class Conv2D(Function):
         # , so, we can't really use the same path at round 1 every time
         # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.einsum('igk,gkjyx->igjyx', ggg[:,:,:,Y,X], tw, optimize=path)
 
-        # it passed the test, which didn't mean it' right
+        # it passed the test, which didn't mean it's right
         # it's slow tho: 37 sec
+        # the accuracy did increase btw
         gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
 
     return gdx.reshape((bs, ctx.groups*cin, OY, OX)), gdw.reshape((ctx.groups*rcout, cin, H, W))
