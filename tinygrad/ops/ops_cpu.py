@@ -190,7 +190,7 @@ class Conv2D(Function):
     return np.moveaxis(ret,4,2).reshape(bs, cout, oy, ox)
 
   # add org condition here for easier modification
-  def backward(ctx, grad_output,org=False):
+  def backward(ctx, grad_output,org=True):
     bs,_,oy,ox = grad_output.shape
     tx, tw, x_shape = ctx.saved_tensors
     _,rcout,cin,H,W = tw.shape
@@ -212,6 +212,9 @@ class Conv2D(Function):
         iY,iX = Y*ys, X*xs
         for g in range(ctx.groups):
           tg = np.dot(ggg[:,g,:,Y,X].reshape(bs, -1), tw[g].reshape(rcout, -1))
+          # reshape of ggg[] is unnecessary
+          # i don't know why it's a bit slower if we removed reshape in ggg[]
+          # tg = np.dot(ggg[:,g,:,Y,X], tw[g].reshape(rcout, -1))
           gdx[:, g, :, iY:iY+H, iX:iX+W] += tg.reshape((bs, cin, H, W))
     else:
       # remember, it's gradient to pass "backward"ly, instead of the gradient of this conv layer

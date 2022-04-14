@@ -36,7 +36,7 @@ class TestMNIST(unittest.TestCase):
     train(model, X_train, Y_train, optimizer, steps=200)
     assert evaluate(model, X_test, Y_test) > 0.95
 
-
-unittest.main()
+if __name__ == "__main__":
+  unittest.main()
 
 
