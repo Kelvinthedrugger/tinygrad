@@ -208,7 +208,7 @@ class Conv2D(Function):
     # add path via np.einsum_path
     # path[0] is the algorithm to execute,
     # path[1] is the information of the calculated steps and time comsumption
-    # path = ['einsum_path', (0, 1)] # via grid search, precached here for speed, tho it's still very slow (40 sec)
+    # path = ['einsum_path', (0, 1)] # via grid search, precached here for speed
     for k in range(oy*ox):
       Y, X = k//ox, k%ox
       iY,iX = Y*ys, X*xs
@@ -218,7 +218,6 @@ class Conv2D(Function):
       # it's right but very slow: 37 sec
       # gdx[:,:,: , iY:iY+H, iX:iX+W] += np.tensordot(ggg[:,:,:,Y,X], tw, axes=2).sum(axis=0)
 
-      # 31.5 sec
       for g in range(ctx.groups):
         tg = np.dot(ggg[:,g,:,Y,X].reshape(bs, -1), tw[g].reshape(rcout, -1))
         gdx[:, g, :, iY:iY+H, iX:iX+W] += tg.reshape((bs, cin, H, W))
