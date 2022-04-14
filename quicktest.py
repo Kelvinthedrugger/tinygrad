@@ -1,4 +1,5 @@
 # don't commit this
+# there were no test for ops_cpu.py
 import os
 import unittest
 import numpy as np
